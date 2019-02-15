@@ -94,7 +94,7 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
         for i in allowed:
             if i.username == user.name:
                 # print(print_obj(user))
-                user.is_staff = True
+                user.is_staff = i.is_staff
                 user.is_superuser = i.is_superuser
 
         user.save()

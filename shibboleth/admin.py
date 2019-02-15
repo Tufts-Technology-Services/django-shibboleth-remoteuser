@@ -11,5 +11,5 @@ class AllowedUserAdmin(admin.ModelAdmin):
         ])
     groups_display.short_description = "Groups"
 
-    list_display = ('username', 'groups_display', 'is_superuser')
+    list_display = ('username', 'groups_display', 'is_superuser', 'is_staff')
     filter_horizontal = ['groups']
