@@ -5,7 +5,8 @@ from django.core.exceptions import ImproperlyConfigured
 from .models import AllowedUser
 import re
 
-from shibboleth.app_settings import SHIB_ATTRIBUTE_MAP, GROUP_ATTRIBUTES, GROUP_DELIMITERS
+from shibboleth.app_settings import SHIB_ATTRIBUTE_MAP, GROUP_ATTRIBUTES, GROUP_DELIMITERS, SHIB_DEFAULT_GROUP, \
+    SHIB_PURGE_GROUPS, IS_STAFF_DEFAULT
 
 
 class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
@@ -59,16 +60,19 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
             # by logging the user in.
             request.user = user
             auth.login(request, user)
-            
+
+            groups = []
+            if SHIB_DEFAULT_GROUP:
+                groups.append(SHIB_DEFAULT_GROUP)
+
             # Upgrade user groups if configured in the settings.py
             # If activated, the user will be associated with those groups.
             if GROUP_ATTRIBUTES:
-                groups = self.parse_group_attributes(request)
-                self.update_user_groups(request, user, groups)
+                groups.extend(self.parse_group_attributes(request))
 
-            allowed_groups = self.get_allowed_groups(username)
-            if len(allowed_groups) > 0:
-                self.update_user_groups(request, user, allowed_groups)
+            groups.extend(self.get_allowed_groups(username))
+
+            self.update_user_groups(request, user, groups, SHIB_PURGE_GROUPS)
 
             # call make profile.
             self.make_profile(user, shib_meta)
@@ -81,7 +85,19 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
         to include a make_profile method that will create a Django user profile
         from the Shib provided attributes.  By default it does nothing.
         """
-        return
+        # check IS_STAFF_DEFAULT to see if the is_staff flag should be set
+        if IS_STAFF_DEFAULT:
+            user.is_staff = IS_STAFF_DEFAULT
+
+        # look through the allowedusers list to see if the user should be a superuser
+        allowed = AllowedUser.objects.all()
+        for i in allowed:
+            if i.username == user.name:
+                # print(print_obj(user))
+                user.is_staff = True
+                user.is_superuser = i.is_superuser
+
+        user.save()
 
     def setup_session(self, request):
         """
@@ -99,15 +115,19 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
                 groups.append(g.name)
         return groups
 
-    def update_user_groups(self, request, user, groups):
-        # Remove the user from all groups that are not specified
-        for group in user.groups.all():
-            if group.name not in groups:
-                group.user_set.remove(user)
+    def update_user_groups(self, request, user, groups, purge_groups):
+        # Remove the user from all groups that are not specified, if purge_groups is True
+        if purge_groups:
+            for group in user.groups.all():
+                if group.name not in groups:
+                    group.user_set.remove(user)
         # Add the user to all groups specified
+        user_groups = user.groups.all()
         for g in groups:
             group, created = Group.objects.get_or_create(name=g)
-            group.user_set.add(user)
+            for u in user_groups:
+                if u.name not in groups:
+                    group.user_set.add(user)
 
     @staticmethod
     def parse_attributes(request):

@@ -30,3 +30,14 @@ LOGOUT_URL = getattr(settings, 'SHIBBOLETH_LOGOUT_URL', None)
 #LOGOUT_REDIRECT_URL specifies a default logout page that will always be used when
 #users logout from Shibboleth.
 LOGOUT_REDIRECT_URL = getattr(settings, 'SHIBBOLETH_LOGOUT_REDIRECT_URL', None)
+
+# Create a User object if not already in the database?
+CREATE_UNKNOWN_USER = getattr(settings, 'CREATE_UNKNOWN_USER', True)
+
+# should everyone who can log in be able to access admin pages?
+IS_STAFF_DEFAULT = getattr(settings, 'IS_STAFF_DEFAULT', False)
+
+SHIB_DEFAULT_GROUP = getattr(settings, 'SHIB_DEFAULT_GROUP', None)
+
+# should all groups not specified by AllowedUsers, SHIB_DEFAULT_GROUP, and Shib headers be removed on authentication?
+SHIB_PURGE_GROUPS = getattr(settings, 'SHIB_PURGE_GROUPS', True)
