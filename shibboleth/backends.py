@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import RemoteUserBackend
 from django.conf import settings
+from .models import AllowedUser
 
 
 class ShibbolethRemoteUserBackend(RemoteUserBackend):
@@ -35,11 +36,25 @@ class ShibbolethRemoteUserBackend(RemoteUserBackend):
         username = self.clean_username(remote_user)
         field_names = [x.name for x in User._meta.get_fields()]
         shib_user_params = dict([(k, shib_meta[k]) for k in field_names if k in shib_meta])
+
+        # check IS_STAFF_DEFAULT to see if the is_staff flag should be set
+        if hasattr(settings, 'IS_STAFF_DEFAULT') and settings.IS_STAFF_DEFAULT:
+            shib_user_params['is_staff'] = settings.IS_STAFF_DEFAULT
+
+        # look through the allowedusers list to see if the user should be a superuser
+        allowed = AllowedUser.objects.all()
+        for i in allowed:
+            if i.username == username:
+                # print(print_obj(user))
+                shib_user_params['is_staff'] = True
+                shib_user_params['is_superuser'] = i.is_superuser
+
         # Note that this could be accomplished in one try-except clause, but
         # instead we use get_or_create when creating unknown users since it has
         # built-in safeguards for multiple threads.
         if self.create_unknown_user:
             user, created = User.objects.get_or_create(username=username, defaults=shib_user_params)
+
             if created:
                 """
                 @note: setting password for user needs on initial creation of user instead of after auth.login() of middleware.

@@ -2,6 +2,7 @@ from django.contrib.auth.middleware import RemoteUserMiddleware
 from django.contrib.auth.models import Group
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
+from .models import AllowedUser
 import re
 
 from shibboleth.app_settings import SHIB_ATTRIBUTE_MAP, GROUP_ATTRIBUTES, GROUP_DELIMITERS
@@ -62,7 +63,13 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
             # Upgrade user groups if configured in the settings.py
             # If activated, the user will be associated with those groups.
             if GROUP_ATTRIBUTES:
-                self.update_user_groups(request, user)
+                groups = self.parse_group_attributes(request)
+                self.update_user_groups(request, user, groups)
+
+            allowed_groups = self.get_allowed_groups(username)
+            if len(allowed_groups) > 0:
+                self.update_user_groups(request, user, allowed_groups)
+
             # call make profile.
             self.make_profile(user, shib_meta)
             # setup session.
@@ -83,13 +90,21 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
         """
         return
 
-    def update_user_groups(self, request, user):
-        groups = self.parse_group_attributes(request)
-        # Remove the user from all groups that are not specified in the shibboleth metadata
+    def get_allowed_groups(self, username):
+        allowed = AllowedUser.objects.filter(username=username)
+        groups = []
+        if len(allowed) > 0:
+            group_obj = allowed[0].groups.all()
+            for g in group_obj:
+                groups.append(g.name)
+        return groups
+
+    def update_user_groups(self, request, user, groups):
+        # Remove the user from all groups that are not specified
         for group in user.groups.all():
             if group.name not in groups:
                 group.user_set.remove(user)
-        # Add the user to all groups in the shibboleth metadata
+        # Add the user to all groups specified
         for g in groups:
             group, created = Group.objects.get_or_create(name=g)
             group.user_set.add(user)
