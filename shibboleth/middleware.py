@@ -92,7 +92,7 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
         # look through the allowedusers list to see if the user should be a superuser
         allowed = AllowedUser.objects.all()
         for i in allowed:
-            if i.username == user.name:
+            if i.username == user.username:
                 # print(print_obj(user))
                 user.is_staff = i.is_staff
                 user.is_superuser = i.is_superuser
