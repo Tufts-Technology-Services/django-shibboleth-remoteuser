@@ -3,7 +3,8 @@ from .models import AllowedUser, AllowedGroup
 # Register your models here.
 
 
-class AllowedGroupInline(admin.StackedInline):
+@admin.register(AllowedGroup)
+class AllowedGroupAdmin(admin.ModelAdmin):
     model = AllowedGroup
 
 
@@ -15,6 +16,5 @@ class AllowedUserAdmin(admin.ModelAdmin):
         ])
     groups_display.short_description = "Groups"
 
-    inlines= [AllowedGroupInline]
     list_display = ('username', 'groups_display', 'is_superuser', 'is_staff')
     filter_horizontal = ['groups']
