@@ -125,9 +125,8 @@ class ShibbolethRemoteUserMiddleware(RemoteUserMiddleware):
         user_groups = user.groups.all()
         for g in groups:
             group, created = Group.objects.get_or_create(name=g)
-            for u in user_groups:
-                if u.name not in groups:
-                    group.user_set.add(user)
+            if group not in user_groups:
+                group.user_set.add(user)
 
     @staticmethod
     def parse_attributes(request):
